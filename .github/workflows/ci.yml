@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / Release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DBYTE_STREAM_BUILD_TESTS=ON
+          -DBYTE_STREAM_BUILD_EXAMPLES=ON
+          -DBYTE_STREAM_BUILD_BENCHMARKS=OFF
+          -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+  gcc9:
+    name: GCC 9 / C++17 compatibility
+    runs-on: ubuntu-latest
+    container: ubuntu:20.04
+    timeout-minutes: 20
+    env:
+      CC: gcc-9
+      CXX: g++-9
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install build tools
+        run: apt-get update && apt-get install --yes ca-certificates cmake g++-9 gcc-9 git ninja-build
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Configure
+        run: >
+          cmake -S . -B build/gcc9 -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBYTE_STREAM_BUILD_TESTS=ON
+          -DBYTE_STREAM_BUILD_EXAMPLES=ON
+          -DBYTE_STREAM_BUILD_BENCHMARKS=OFF
+          -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build/gcc9 --parallel 2
+      - name: Test
+        run: ctest --test-dir build/gcc9 --output-on-failure
+
+  sanitizers:
+    name: Clang ASan / UBSan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CC: clang
+      CXX: clang++
+      ASAN_OPTIONS: detect_leaks=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Configure
+        run: >
+          cmake -S . -B build/sanitizers
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBYTE_STREAM_BUILD_TESTS=ON
+          -DBYTE_STREAM_BUILD_EXAMPLES=ON
+          -DBYTE_STREAM_BUILD_BENCHMARKS=OFF
+          -DBYTE_STREAM_ENABLE_SANITIZERS=ON
+          -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build/sanitizers --parallel 2
+      - name: Test
+        run: ctest --test-dir build/sanitizers --output-on-failure
+
+  embedded-cross-compile:
+    name: ${{ matrix.name }} / no exceptions / no RTTI
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ARMv7 hard-float
+            package: g++-arm-linux-gnueabihf
+            compiler: arm-linux-gnueabihf-g++
+            processor: armv7
+          - name: AArch64
+            package: g++-aarch64-linux-gnu
+            compiler: aarch64-linux-gnu-g++
+            processor: aarch64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install cross compiler
+        run: sudo apt-get update && sudo apt-get install --yes ${{ matrix.package }}
+      - name: Configure embedded smoke build
+        run: >
+          cmake -S cmake/embedded-smoke -B build/embedded
+          -DCMAKE_BUILD_TYPE=MinSizeRel
+          -DCMAKE_SYSTEM_NAME=Linux
+          -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.processor }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+          -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          -DBYTE_STREAM_SOURCE_DIR=${{ github.workspace }}
+      - name: Cross-compile
+        run: cmake --build build/embedded --parallel 2
+
+  benchmark-smoke:
+    name: Release benchmark smoke test
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Configure
+        run: >
+          cmake -S . -B build/benchmark
+          -DCMAKE_BUILD_TYPE=Release
+          -DBYTE_STREAM_BUILD_TESTS=OFF
+          -DBYTE_STREAM_BUILD_EXAMPLES=OFF
+          -DBYTE_STREAM_BUILD_BENCHMARKS=ON
+          -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build/benchmark --parallel 2
+      - name: Run benchmarks
+        run: |
+          ./build/benchmark/benchmarks/byte_stream_performance --csv
+          ./build/benchmark/benchmarks/byte_stream_coverage_benchmark

@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Verify and publish source release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Configure Release build
+        run: >
+          cmake -S . -B build/release
+          -DCMAKE_BUILD_TYPE=Release
+          -DBYTE_STREAM_BUILD_TESTS=ON
+          -DBYTE_STREAM_BUILD_EXAMPLES=ON
+          -DBYTE_STREAM_BUILD_BENCHMARKS=OFF
+          -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+      - name: Verify tag matches CMake version
+        shell: bash
+        run: |
+          package_version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]*\([^[:space:]]*\)$/\1/p' CMakeLists.txt | head -n 1)
+          tag_version=${GITHUB_REF_NAME#v}
+          base_tag_version=${tag_version%%-*}
+          test -n "$package_version"
+          test "$package_version" = "$base_tag_version"
+      - name: Build and test tagged source
+        run: |
+          cmake --build build/release --parallel 2
+          ctest --test-dir build/release --output-on-failure
+      - name: Create reproducible source archives and checksums
+        shell: bash
+        run: |
+          mkdir -p dist
+          archive_name=byte_stream-${GITHUB_REF_NAME#v}
+          git archive --format=tar --prefix="$archive_name/" HEAD | gzip -n > "dist/$archive_name.tar.gz"
+          git archive --format=zip --prefix="$archive_name/" --output="dist/$archive_name.zip" HEAD
+          cd dist
+          sha256sum "$archive_name.tar.gz" "$archive_name.zip" > SHA256SUMS
+      - name: Verify generated source archive offline
+        shell: bash
+        run: |
+          archive_name=byte_stream-${GITHUB_REF_NAME#v}
+          mkdir archive-smoke
+          tar -xzf "dist/$archive_name.tar.gz" -C archive-smoke
+          cmake -S "archive-smoke/$archive_name" -B build/archive-smoke \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBYTE_STREAM_BUILD_TESTS=ON \
+            -DBYTE_STREAM_BUILD_EXAMPLES=ON \
+            -DBYTE_STREAM_BUILD_BENCHMARKS=OFF \
+            -DBYTE_STREAM_WARNINGS_AS_ERRORS=ON
+          cmake --build build/archive-smoke --parallel 2
+          ctest --test-dir build/archive-smoke --output-on-failure
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "byte_stream $GITHUB_REF_NAME"
+          fi

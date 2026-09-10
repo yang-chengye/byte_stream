@@ -1,0 +1,15 @@
+add_executable(byte_stream_basic basic.cpp)
+target_link_libraries(byte_stream_basic PRIVATE byte_stream::byte_stream)
+byte_stream_configure_development_target(byte_stream_basic)
+
+add_executable(byte_stream_custom_protocol custom_protocol.cpp)
+target_link_libraries(byte_stream_custom_protocol PRIVATE byte_stream::byte_stream)
+byte_stream_configure_development_target(byte_stream_custom_protocol)
+
+add_executable(byte_stream_macro_generated macro_generated.cpp)
+target_link_libraries(byte_stream_macro_generated PRIVATE byte_stream::byte_stream)
+byte_stream_configure_development_target(byte_stream_macro_generated)
+
+add_executable(byte_stream_fixed_buffer fixed_buffer.cpp)
+target_link_libraries(byte_stream_fixed_buffer PRIVATE byte_stream::byte_stream)
+byte_stream_configure_development_target(byte_stream_fixed_buffer)

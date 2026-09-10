@@ -1,0 +1,44 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: GCC line coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install --yes lcov
+      - name: Configure
+        run: cmake --preset coverage
+      - name: Build
+        run: cmake --build --preset coverage --parallel 2
+      - name: Test
+        run: ctest --preset coverage
+      - name: Capture project coverage
+        run: |
+          lcov --capture --directory build/coverage --output-file coverage-all.info --ignore-errors mismatch
+          lcov --extract coverage-all.info '${{ github.workspace }}/include/*' --output-file coverage.info --ignore-errors unused
+          lcov --list coverage.info
+          genhtml coverage.info --output-directory coverage-html
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v7
+        with:
+          name: byte-stream-coverage
+          path: coverage-html
+          if-no-files-found: error
+          retention-days: 14

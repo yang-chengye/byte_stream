@@ -1,0 +1,139 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Developer build",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BYTE_STREAM_BUILD_TESTS": "ON",
+        "BYTE_STREAM_BUILD_EXAMPLES": "ON",
+        "BYTE_STREAM_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release build",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BYTE_STREAM_BUILD_TESTS": "ON",
+        "BYTE_STREAM_BUILD_EXAMPLES": "ON",
+        "BYTE_STREAM_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
+      "name": "strict",
+      "displayName": "Strict C++17 build",
+      "binaryDir": "${sourceDir}/build/strict",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BYTE_STREAM_BUILD_TESTS": "ON",
+        "BYTE_STREAM_BUILD_EXAMPLES": "ON",
+        "BYTE_STREAM_BUILD_BENCHMARKS": "ON",
+        "BYTE_STREAM_ENABLE_WARNINGS": "ON",
+        "BYTE_STREAM_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "sanitizers",
+      "displayName": "ASan and UBSan build",
+      "binaryDir": "${sourceDir}/build/sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BYTE_STREAM_BUILD_TESTS": "ON",
+        "BYTE_STREAM_BUILD_EXAMPLES": "ON",
+        "BYTE_STREAM_BUILD_BENCHMARKS": "OFF",
+        "BYTE_STREAM_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "coverage",
+      "displayName": "GCC source coverage build",
+      "binaryDir": "${sourceDir}/build/coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BYTE_STREAM_BUILD_TESTS": "ON",
+        "BYTE_STREAM_BUILD_EXAMPLES": "OFF",
+        "BYTE_STREAM_BUILD_BENCHMARKS": "OFF",
+        "BYTE_STREAM_ENABLE_COVERAGE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "configuration": "Release"
+    },
+    {
+      "name": "strict",
+      "configurePreset": "strict",
+      "configuration": "Debug"
+    },
+    {
+      "name": "sanitizers",
+      "configurePreset": "sanitizers",
+      "configuration": "Debug"
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "strict",
+      "configurePreset": "strict",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "sanitizers",
+      "configurePreset": "sanitizers",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
