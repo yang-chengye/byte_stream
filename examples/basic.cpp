@@ -11,14 +11,14 @@ int main() {
     stream.set<uint16_t>(0x1234);
     stream.set<uint32_t>(0x00A1B2C3, 3);
 
-    std::cout << "encoded: " << stream.debug_string(true) << '\n';
+    std::cout << "encoded: " << stream.to_hex(true) << '\n';
 
     const auto version = stream.get<uint8_t>();
     const auto sequence = stream.get<uint16_t>();
-    const auto area_code = stream.get<uint32_t>(3);
+    const auto device_id = stream.get<uint32_t>(3);
 
     std::cout << std::hex << std::showbase;
     std::cout << "version=" << static_cast<int>(version)
               << " sequence=" << sequence
-              << " area_code=" << area_code << '\n';
+              << " device_id=" << device_id << '\n';
 }

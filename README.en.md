@@ -11,7 +11,7 @@
 - Zero-copy `byte_reader` and allocation-free, fixed-capacity `byte_writer`, with support for `-fno-exceptions`
 - Little-endian and big-endian support
 - Support for integers, enums, `std::byte`, `float`, `double`, and `bool`
-- Nonstandard integer widths, such as a 3-byte administrative area code
+- Nonstandard integer widths, such as a 24-bit device identifier stored in 3 bytes
 - Bulk reads and writes for sequential containers, `std::array`, and C arrays
 - Support for `std::optional`, smart pointers, `std::pair`, `std::tuple`, and `std::variant`
 - Custom protocol structures through ADL, macros, or `byte_stream_codec<T>`
@@ -60,7 +60,7 @@ Inspect the encoded bytes:
 
 ```cpp
 const auto& bytes = stream.buffer();
-const auto hex = stream.debug_string(true); // "01 34 12 c3 b2 a1"
+const auto hex = stream.to_hex(true); // "01 34 12 c3 b2 a1"
 
 // Read-only indexing and iteration over the entire buffer leave the read position unchanged.
 const auto first = stream[0];
@@ -85,9 +85,9 @@ if (writer.write<uint16_t>(0x1234) != byte_stream::byte_stream_errc::ok ||
 
 byte_stream::byte_reader reader(writer.view());
 uint16_t sequence = 0;
-uint32_t area_code = 0;
+uint32_t device_id = 0;
 if (reader.read(sequence) != byte_stream::byte_stream_errc::ok ||
-    reader.read(area_code, 3) != byte_stream::byte_stream_errc::ok) {
+    reader.read(device_id, 3) != byte_stream::byte_stream_errc::ok) {
     // Truncated input, an invalid value, or an invalid argument.
 }
 ```
@@ -335,20 +335,20 @@ namespace protocol {
 
 struct packet {
     uint8_t id;
-    uint32_t area_code; // 3 bytes on the wire.
+    uint32_t device_id; // 24-bit device identifier, 3 bytes on the wire.
     std::vector<uint16_t> values;
 };
 
 void to_byte_stream(byte_stream::stream& stream, const packet& value) {
     stream.set(value.id);
-    stream.set(value.area_code, 3);
+    stream.set(value.device_id, 3);
     stream.set(static_cast<uint8_t>(value.values.size()));
     stream.set(value.values);
 }
 
 void from_byte_stream(const byte_stream::stream& stream, packet& value) {
     value.id = stream.get<uint8_t>();
-    value.area_code = stream.get<uint32_t>(3);
+    value.device_id = stream.get<uint32_t>(3);
 
     const auto count = stream.get<uint8_t>();
     stream.get_to(value.values, count);
@@ -365,14 +365,14 @@ namespace protocol {
 struct header {
     uint8_t version;
     uint16_t sequence;
-    uint32_t area_code; // 3 bytes on the wire.
+    uint32_t device_id; // 24-bit device identifier, 3 bytes on the wire.
     std::array<uint8_t, 4> magic;
 };
 
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(header,
     version,
     sequence,
-    (area_code, 3),
+    (device_id, 3),
     magic)
 
 } // namespace protocol
@@ -386,16 +386,16 @@ namespace protocol {
 class header {
 public:
     header() = default;
-    header(uint8_t version, uint32_t area_code)
-        : version_(version), area_code_(area_code) {}
+    header(uint8_t version, uint32_t device_id)
+        : version_(version), device_id_(device_id) {}
 
 private:
     uint8_t version_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
 
     BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(header,
         version_,
-        (area_code_, 3))
+        (device_id_, 3))
 };
 
 } // namespace protocol
@@ -410,19 +410,19 @@ If a type needs conversion in only one direction, use a macro that generates jus
 ```cpp
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(header,
     version,
-    (area_code, 3))
+    (device_id, 3))
 
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_DESERIALIZE(header,
     version,
-    (area_code, 3))
+    (device_id, 3))
 
 BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(header,
     version_,
-    (area_code_, 3))
+    (device_id_, 3))
 
 BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_DESERIALIZE(header,
     version_,
-    (area_code_, 3))
+    (device_id_, 3))
 ```
 
 You can also specialize `byte_stream::byte_stream_codec<T>` to define support entirely outside the class. This suits library adapters, third-party types, or cases where you do not want to expose ADL functions in the type's namespace:
@@ -485,12 +485,35 @@ auto decoded = byte_stream::stream::parse<protocol::packet>(stream.buffer());
 | `begin()` / `end()` | Read-only iteration over the entire buffer, independent of the read position |
 | `take_buffer()` | Move out the underlying buffer without copying; empty the stream and reset its position to zero |
 | `operator+` / `operator+=` | Concatenate the complete buffers of two streams; preserve the left operand's position and byte order |
-| `debug_string(true)` | Produce a hexadecimal string for logging and test assertions |
+| `to_hex(with_spaces, uppercase)` | Format the complete buffer as hex; both options default to false |
+| `stream::from_hex(text)` | Decode mixed-case hex, ignoring ASCII whitespace, into a byte vector |
 | `seek(pos)` / `reset_position()` | Adjust the read position |
 | `remaining()` / `eof()` | Inspect the remaining readable bytes |
 | `set_endian(endian)` | Set the wire byte order to `little` or `big`; defaults to `little` |
 
 The allocation-free basic APIs are in `byte_stream/byte_io.hpp`: `byte_writer::write` / `write_compact` / `write_bytes` write into a fixed caller-provided buffer; `byte_reader::read` / `read_compact` / `read_bytes` read from a caller-provided buffer. `read_view` returns a subview of the input directly. These operations return `byte_stream_errc`: `ok` indicates success and `insufficient_space` indicates insufficient remaining writer capacity.
+
+## Hexadecimal conversion
+
+```cpp
+byte_stream::stream s(std::vector<uint8_t>{0x01, 0xab, 0xcd});
+s.to_hex();             // "01abcd"
+s.to_hex(true);         // "01 ab cd"
+s.to_hex(false, true);  // "01ABCD"
+s.to_hex(true, true);   // "01 AB CD"
+auto text = byte_stream::stream::to_hex(s.buffer(), true, true);
+auto bytes = byte_stream::stream::from_hex("01 aB CD");
+byte_stream::stream restored(std::move(bytes));
+```
+
+`to_hex` returns an owning string; its static overload accepts a `const std::vector<uint8_t>&`.
+It formats the complete buffer without changing the read position or byte order.
+`from_hex(std::string_view)` returns an owning `std::vector<uint8_t>` and does not retain the input view.
+It accepts both letter cases and ignores ASCII space, tab, LF, CR, form feed and vertical tab anywhere;
+thus `"A B"` decodes to `0xAB`. Empty or whitespace-only input returns an empty vector.
+Odd digit counts and invalid characters throw `byte_stream_error` with `invalid_value`;
+`0x` prefixes, commas and colons are not accepted. Output size overflow reports `size_overflow`.
+Both conversions may allocate, are independent of endian settings, and do not change the binary wire format.
 
 ## Exception handling
 

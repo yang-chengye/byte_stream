@@ -9,29 +9,29 @@ namespace protocol {
 struct header {
     uint8_t version{};
     uint16_t sequence{};
-    uint32_t area_code{};
+    uint32_t device_id{};
     std::array<uint8_t, 4> magic{};
 };
 
-BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(header, version, sequence, (area_code, 3), magic)
+BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(header, version, sequence, (device_id, 3), magic)
 
 class private_header {
 public:
     private_header() = default;
 
-    private_header(uint8_t flags, uint32_t area_code)
+    private_header(uint8_t flags, uint32_t device_id)
         : flags_(flags),
-          area_code_(area_code) {
+          device_id_(device_id) {
     }
 
     uint8_t flags() const noexcept { return flags_; }
-    uint32_t area_code() const noexcept { return area_code_; }
+    uint32_t device_id() const noexcept { return device_id_; }
 
 private:
     uint8_t flags_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
 
-    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(private_header, flags_, (area_code_, 3))
+    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(private_header, flags_, (device_id_, 3))
 };
 
 } // namespace protocol
@@ -55,9 +55,9 @@ int main() {
     stream.get_to(incoming_header);
     stream.get_to(incoming_private);
 
-    std::cout << "encoded: " << stream.debug_string(true) << '\n';
+    std::cout << "encoded: " << stream.to_hex(true) << '\n';
     std::cout << "header version=" << static_cast<int>(incoming_header.version)
               << " sequence=" << incoming_header.sequence << '\n';
     std::cout << "private flags=" << static_cast<int>(incoming_private.flags())
-              << " area_code=" << incoming_private.area_code() << '\n';
+              << " device_id=" << incoming_private.device_id() << '\n';
 }

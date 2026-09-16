@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.0
+ * Version: 0.1.1
  * License: MIT
  */
 
@@ -24,6 +24,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -916,28 +917,31 @@ public:
     }
 
     /**
-     * @brief 将当前完整缓冲区转换为小写十六进制诊断字符串。
+     * @brief 将当前完整缓冲区转换为十六进制字符串。
      * @param with_spaces 为 true 时在相邻字节之间插入一个空格。
+     * @param uppercase 为 true 时使用大写字母，默认为小写。
      * @return 十六进制字符串；空缓冲区返回空字符串。
      * @throws byte_stream_error 结果长度溢出或超过字符串最大容量时抛出。
      */
-    [[nodiscard]] std::string debug_string(bool with_spaces = false) const {
-        return debug_string(buf_, with_spaces);
+    [[nodiscard]] std::string to_hex(bool with_spaces = false, bool uppercase = false) const {
+        return to_hex(buf_, with_spaces, uppercase);
     }
 
     /**
-     * @brief 将指定字节数组转换为小写十六进制诊断字符串。
+     * @brief 将指定字节数组转换为十六进制字符串。
      * @param data 要格式化的字节数组。
      * @param with_spaces 为 true 时在相邻字节之间插入一个空格。
+     * @param uppercase 为 true 时使用大写字母，默认为小写。
      * @return 十六进制字符串；空数组返回空字符串。
      * @throws byte_stream_error 结果长度溢出或超过字符串最大容量时抛出。
      */
-    [[nodiscard]] static std::string debug_string(const std::vector<uint8_t>& data, bool with_spaces = false) {
+    [[nodiscard]] static std::string to_hex(
+        const std::vector<uint8_t>& data, bool with_spaces = false, bool uppercase = false) {
         if (data.empty()) {
             return {};
         }
 
-        static constexpr char hex_chars[] = "0123456789abcdef";
+        const char* const hex_chars = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
         if (data.size() > (std::numeric_limits<size_t>::max)() / 2) {
             throw byte_stream_error(byte_stream_errc::size_overflow,
                 "byte_stream: hexadecimal string size overflow");
@@ -957,13 +961,79 @@ public:
             throw byte_stream_error(byte_stream_errc::size_overflow,
                 "byte_stream: hexadecimal string exceeds string maximum");
         }
-        result.reserve(result_size);
+        result.resize(result_size);
+        size_t output = 0;
         for (size_t i = 0; i < data.size(); ++i) {
             uint8_t byte = data[i];
-            result.push_back(hex_chars[(byte >> 4) & 0x0F]);
-            result.push_back(hex_chars[byte & 0x0F]);
+            result[output++] = hex_chars[(byte >> 4) & 0x0F];
+            result[output++] = hex_chars[byte & 0x0F];
             if (with_spaces && i + 1 != data.size()) {
-                result.push_back(' ');
+                result[output++] = ' ';
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @brief 将十六进制文本转换为独立持有的字节数组，不保留输入视图。
+     * @param text 接受大小写混合，忽略 ASCII 空白（空格、\t、\n、\r、\f、\v）。
+     * @return 解码后的字节数组；空文本或全空白返回空数组。
+     * @throws byte_stream_error 非法字符或奇数个十六进制字符抛出 invalid_value；
+     * 输出超过 vector 最大容量时抛出 size_overflow。不支持 0x 前缀或其他分隔符。
+     */
+    [[nodiscard]] static std::vector<uint8_t> from_hex(std::string_view text) {
+        const auto is_space = [](char ch) noexcept {
+            return ch == ' ' || ch == '\t' || ch == '\n' ||
+                ch == '\r' || ch == '\f' || ch == '\v';
+        };
+        const auto digit = [](char ch) noexcept -> int {
+            if (ch >= '0' && ch <= '9') {
+                return ch - '0';
+            }
+            if (ch >= 'a' && ch <= 'f') {
+                return ch - 'a' + 10;
+            }
+            if (ch >= 'A' && ch <= 'F') {
+                return ch - 'A' + 10;
+            }
+            return -1;
+        };
+
+        // 先验证并计数，避免为畸形输入或大量空白分配输出存储。
+        size_t digit_count = 0;
+        for (char ch : text) {
+            if (is_space(ch)) {
+                continue;
+            }
+            if (digit(ch) < 0) {
+                throw byte_stream_error(byte_stream_errc::invalid_value,
+                    "byte_stream: invalid hexadecimal character");
+            }
+            ++digit_count;
+        }
+        if (digit_count % 2 != 0) {
+            throw byte_stream_error(byte_stream_errc::invalid_value,
+                "byte_stream: odd hexadecimal digit count");
+        }
+
+        std::vector<uint8_t> result;
+        if (digit_count / 2 > result.max_size()) {
+            throw byte_stream_error(byte_stream_errc::size_overflow,
+                "byte_stream: hexadecimal output exceeds vector maximum");
+        }
+        result.reserve(digit_count / 2);
+        int high = -1;
+        for (char ch : text) {
+            if (is_space(ch)) {
+                continue;
+            }
+            const int value = digit(ch);
+            if (high < 0) {
+                high = value;
+            }
+            else {
+                result.push_back(static_cast<uint8_t>((high << 4) | value));
+                high = -1;
             }
         }
         return result;

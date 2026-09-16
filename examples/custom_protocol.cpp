@@ -13,14 +13,14 @@ enum class packet_type : uint8_t {
 
 struct packet {
     uint8_t id{};
-    uint32_t area_code{};
+    uint32_t device_id{};
     packet_type type{};
     std::vector<uint16_t> values;
 };
 
 void to_byte_stream(byte_stream::stream& stream, const packet& value) {
     stream.set(value.id);
-    stream.set(value.area_code, 3);
+    stream.set(value.device_id, 3);
     stream.set(value.type);
     stream.set(static_cast<uint8_t>(value.values.size()));
     stream.set(value.values);
@@ -28,7 +28,7 @@ void to_byte_stream(byte_stream::stream& stream, const packet& value) {
 
 void from_byte_stream(const byte_stream::stream& stream, packet& value) {
     value.id = stream.get<uint8_t>();
-    value.area_code = stream.get<uint32_t>(3);
+    value.device_id = stream.get<uint32_t>(3);
     value.type = stream.get<packet_type>();
 
     const auto value_count = stream.get<uint8_t>();
@@ -54,7 +54,7 @@ int main() {
     protocol::packet incoming;
     input.get_to(incoming);
 
-    std::cout << "encoded: " << stream.debug_string(true) << '\n';
+    std::cout << "encoded: " << stream.to_hex(true) << '\n';
     std::cout << "decoded id=" << static_cast<int>(incoming.id)
               << " values=" << incoming.values.size() << '\n';
 }

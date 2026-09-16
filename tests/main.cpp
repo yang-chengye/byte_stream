@@ -28,14 +28,14 @@ enum class kind : uint16_t {
 
 struct packet {
     uint8_t id{};
-    uint32_t area_code{};
+    uint32_t device_id{};
     kind type{};
     std::list<uint16_t> values;
 
     friend void swap(packet& lhs, packet& rhs) noexcept {
         using std::swap;
         swap(lhs.id, rhs.id);
-        swap(lhs.area_code, rhs.area_code);
+        swap(lhs.device_id, rhs.device_id);
         swap(lhs.type, rhs.type);
         lhs.values.swap(rhs.values);
     }
@@ -43,14 +43,14 @@ struct packet {
 
 bool operator==(const packet& lhs, const packet& rhs) {
     return lhs.id == rhs.id &&
-        lhs.area_code == rhs.area_code &&
+        lhs.device_id == rhs.device_id &&
         lhs.type == rhs.type &&
         lhs.values == rhs.values;
 }
 
 void to_byte_stream(byte_stream::stream& stream, const packet& value) {
     stream.set(value.id);
-    stream.set(value.area_code, 3);
+    stream.set(value.device_id, 3);
     stream.set(value.type, 1);
     stream.set(static_cast<uint8_t>(value.values.size()));
     stream.set(value.values);
@@ -58,7 +58,7 @@ void to_byte_stream(byte_stream::stream& stream, const packet& value) {
 
 void from_byte_stream(const byte_stream::stream& stream, packet& value) {
     stream.get_to(value.id);
-    stream.get_to(value.area_code, 3);
+    stream.get_to(value.device_id, 3);
     stream.get_to(value.type, 1);
 
     const auto count = stream.get<uint8_t>();
@@ -96,81 +96,81 @@ namespace macro_sample {
 struct public_header {
     uint8_t version{};
     uint16_t sequence{};
-    uint32_t area_code{};
+    uint32_t device_id{};
     std::array<uint8_t, 3> tag{};
 };
 
 bool operator==(const public_header& lhs, const public_header& rhs) {
     return lhs.version == rhs.version &&
         lhs.sequence == rhs.sequence &&
-        lhs.area_code == rhs.area_code &&
+        lhs.device_id == rhs.device_id &&
         lhs.tag == rhs.tag;
 }
 
-BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(public_header, version, sequence, (area_code, 3), tag)
+BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(public_header, version, sequence, (device_id, 3), tag)
 
 struct public_serialize_only_header {
     uint8_t id{};
-    uint32_t area_code{};
+    uint32_t device_id{};
 };
 
-BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(public_serialize_only_header, id, (area_code, 3))
+BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(public_serialize_only_header, id, (device_id, 3))
 
 struct public_deserialize_only_header {
     uint8_t id{};
-    uint32_t area_code{};
+    uint32_t device_id{};
 };
 
-BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_DESERIALIZE(public_deserialize_only_header, id, (area_code, 3))
+BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_DESERIALIZE(public_deserialize_only_header, id, (device_id, 3))
 
 class private_header {
 public:
     private_header() = default;
 
-    private_header(uint8_t channel, uint32_t area_code, std::array<uint16_t, 2> words)
+    private_header(uint8_t channel, uint32_t device_id, std::array<uint16_t, 2> words)
         : channel_(channel),
-          area_code_(area_code),
+          device_id_(device_id),
           words_(words) {
     }
 
     bool operator==(const private_header& other) const {
         return channel_ == other.channel_ &&
-            area_code_ == other.area_code_ &&
+            device_id_ == other.device_id_ &&
             words_ == other.words_;
     }
 
 private:
     uint8_t channel_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
     std::array<uint16_t, 2> words_{};
 
-    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(private_header, channel_, (area_code_, 3), words_)
+    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(private_header, channel_, (device_id_, 3), words_)
 };
 
 class private_serialize_only_header {
 public:
-    private_serialize_only_header(uint8_t id, uint32_t area_code)
+    private_serialize_only_header(uint8_t id, uint32_t device_id)
         : id_(id),
-          area_code_(area_code) {
+          device_id_(device_id) {
     }
 
 private:
     uint8_t id_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
 
-    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(private_serialize_only_header, id_, (area_code_, 3))
+    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(private_serialize_only_header, id_, (device_id_, 3))
 };
 
 class private_deserialize_only_header {
 public:
     uint8_t id() const noexcept { return id_; }
-    uint32_t area_code() const noexcept { return area_code_; }
+    uint32_t device_id() const noexcept { return device_id_; }
 
 private:
     uint8_t id_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
 
-    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_DESERIALIZE(private_deserialize_only_header, id_, (area_code_, 3))
+    BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_DESERIALIZE(private_deserialize_only_header, id_, (device_id_, 3))
 };
 
 } // namespace macro_sample
@@ -324,7 +324,7 @@ TEST(ByteStreamTest, WritesAndReadsLittleEndianIntegers) {
     stream.set<uint32_t>(0x00A1B2C3, 3);
     stream.set<uint64_t>(0x0001020304050607, 7);
 
-    EXPECT_EQ(stream.debug_string(true), "34 12 c3 b2 a1 07 06 05 04 03 02 01");
+    EXPECT_EQ(stream.to_hex(true), "34 12 c3 b2 a1 07 06 05 04 03 02 01");
     EXPECT_EQ(stream.size(), 12U);
     EXPECT_EQ(stream.position(), 0U);
 
@@ -346,7 +346,7 @@ TEST(ByteStreamTest, UsesCanonicalLittleEndianByDefault) {
     stream.set<float>(1.5f);
 
     EXPECT_EQ(stream.get_endian(), byte_stream::endian::little);
-    EXPECT_EQ(stream.debug_string(true), "34 12 c3 b2 a1 00 00 c0 3f");
+    EXPECT_EQ(stream.to_hex(true), "34 12 c3 b2 a1 00 00 c0 3f");
     EXPECT_EQ(stream.get<uint16_t>(), 0x1234);
     EXPECT_EQ(stream.get<uint32_t>(3), 0x00A1B2C3);
     EXPECT_FLOAT_EQ(stream.get<float>(), 1.5f);
@@ -359,7 +359,7 @@ TEST(ByteStreamTest, WritesAndReadsBigEndianFloatingPointValues) {
     stream.set<uint32_t>(0x00A1B2C3, 3);
     stream.set<float>(1.5f, 4);
 
-    EXPECT_EQ(stream.debug_string(true), "12 34 a1 b2 c3 3f c0 00 00");
+    EXPECT_EQ(stream.to_hex(true), "12 34 a1 b2 c3 3f c0 00 00");
     EXPECT_EQ(stream.get<uint16_t>(), 0x1234);
     EXPECT_EQ(stream.get<uint32_t>(3), 0x00A1B2C3);
     EXPECT_FLOAT_EQ(stream.get<float>(4), 1.5f);
@@ -392,7 +392,7 @@ TEST(ByteStreamTest, BulkScalarContainersRespectEndian) {
     stream.set(words);
     stream.set(dwords);
 
-    EXPECT_EQ(stream.debug_string(true), "12 34 ab cd 01 02 03 04 a1 b2 c3 d4");
+    EXPECT_EQ(stream.to_hex(true), "12 34 ab cd 01 02 03 04 a1 b2 c3 d4");
 
     std::vector<uint16_t> decoded_words;
     std::array<uint32_t, 2> decoded_dwords{};
@@ -409,7 +409,7 @@ TEST(ByteStreamTest, SignExtendsPartialSignedIntegers) {
     stream.set<int16_t>(-2, 1);
     stream.set<int32_t>(-32768, 2);
 
-    EXPECT_EQ(stream.debug_string(true), "fe 00 80");
+    EXPECT_EQ(stream.to_hex(true), "fe 00 80");
     EXPECT_EQ(stream.get<int16_t>(1), -2);
     EXPECT_EQ(stream.get<int32_t>(2), -32768);
 }
@@ -421,7 +421,7 @@ TEST(ByteStreamTest, SupportsBooleansAndEnums) {
     stream.set(sample::kind::alpha, 1);
     stream.set(sample::kind::beta);
 
-    EXPECT_EQ(stream.debug_string(true), "01 00 12 34 12");
+    EXPECT_EQ(stream.to_hex(true), "01 00 12 34 12");
     EXPECT_TRUE(stream.get<bool>());
     EXPECT_FALSE(stream.get<bool>());
     EXPECT_EQ(stream.get<sample::kind>(1), sample::kind::alpha);
@@ -436,7 +436,7 @@ TEST(ByteStreamTest, SupportsFixedWidthIntegersAndStdByte) {
     stream.set(std::byte{ 0xAB });
     stream.set<int16_t>(-2);
 
-    EXPECT_EQ(stream.debug_string(true), "ff 80 ab fe ff");
+    EXPECT_EQ(stream.to_hex(true), "ff 80 ab fe ff");
     EXPECT_EQ(stream.get<int8_t>(), -1);
     EXPECT_EQ(stream.get<uint8_t>(), 0x80);
     EXPECT_EQ(stream.get<std::byte>(), std::byte{ 0xAB });
@@ -454,7 +454,7 @@ TEST(ByteStreamTest, SupportsCompactIntegersAndEnums) {
     stream.set_compact<int32_t>(64);
     stream.set_compact(sample::kind::beta);
 
-    EXPECT_EQ(stream.debug_string(true), "00 7f 80 01 ac 02 01 7f 80 01 b4 24");
+    EXPECT_EQ(stream.to_hex(true), "00 7f 80 01 ac 02 01 7f 80 01 b4 24");
     EXPECT_EQ(stream.get_compact<uint64_t>(), 0U);
     EXPECT_EQ(stream.get_compact<uint64_t>(), 127U);
     EXPECT_EQ(stream.get_compact<uint64_t>(), 128U);
@@ -513,7 +513,7 @@ TEST(ByteStreamTest, WritesAndReadsCompactSizePrefixedContainers) {
     stream.set_endian(byte_stream::endian::little);
     stream.set_with_size(values);
 
-    EXPECT_EQ(stream.debug_string(true), "03 34 12 78 56 bc 9a");
+    EXPECT_EQ(stream.to_hex(true), "03 34 12 78 56 bc 9a");
 
     std::vector<uint16_t> decoded;
     stream.get_to_with_size(decoded, 4);
@@ -552,7 +552,7 @@ TEST(ByteStreamTest, WritesAndReadsRawByteContainers) {
     stream.set(payload);
     stream.set(text);
 
-    EXPECT_EQ(stream.debug_string(true), "00 c0 db ff 77 69 72 65");
+    EXPECT_EQ(stream.to_hex(true), "00 c0 db ff 77 69 72 65");
 
     std::vector<uint8_t> decoded_payload;
     std::string decoded_text;
@@ -572,7 +572,7 @@ TEST(ByteStreamTest, WritesAndReadsFixedArrays) {
     stream.set(std_array);
     stream.set(c_array, 2);
 
-    EXPECT_EQ(stream.debug_string(true), "11 11 22 22 33 33 aa bb");
+    EXPECT_EQ(stream.to_hex(true), "11 11 22 22 33 33 aa bb");
 
     std::array<uint16_t, 3> decoded_std_array{};
     uint8_t decoded_c_array[3]{};
@@ -599,7 +599,7 @@ TEST(ByteStreamTest, WritesAndReadsOptionalValues) {
     stream.set(present);
     stream.set(absent);
 
-    EXPECT_EQ(stream.debug_string(true), "01 34 12 00");
+    EXPECT_EQ(stream.to_hex(true), "01 34 12 00");
 
     std::optional<uint16_t> decoded_present;
     std::optional<uint16_t> decoded_absent{ 0xFFFF };
@@ -620,7 +620,7 @@ TEST(ByteStreamTest, WritesAndReadsSmartPointers) {
     stream.set(unique_value);
     stream.set(shared_value, 3);
 
-    EXPECT_EQ(stream.debug_string(true), "34 12 c3 b2 a1");
+    EXPECT_EQ(stream.to_hex(true), "34 12 c3 b2 a1");
 
     std::unique_ptr<uint16_t> decoded_unique;
     std::shared_ptr<uint32_t> decoded_shared;
@@ -646,7 +646,7 @@ TEST(ByteStreamTest, WritesAndReadsPairsAndTuples) {
     stream.set(pair_value);
     stream.set(tuple_value);
 
-    EXPECT_EQ(stream.debug_string(true), "12 56 34 78 bc 9a de");
+    EXPECT_EQ(stream.to_hex(true), "12 56 34 78 bc 9a de");
 
     std::pair<uint8_t, uint16_t> decoded_pair;
     std::tuple<uint8_t, uint16_t, std::byte> decoded_tuple;
@@ -666,7 +666,7 @@ TEST(ByteStreamTest, WritesAndReadsVariantsWithCanonicalIndexes) {
     stream.set(value_type{ uint16_t{ 0x1234 } });
     stream.set(value_type{ text_type{ std::string{ "wire" } } });
 
-    EXPECT_EQ(stream.debug_string(true), "00 01 34 12 02 04 77 69 72 65");
+    EXPECT_EQ(stream.to_hex(true), "00 01 34 12 02 04 77 69 72 65");
     EXPECT_TRUE(std::holds_alternative<std::monostate>(stream.get<value_type>()));
     EXPECT_EQ(std::get<uint16_t>(stream.get<value_type>()), 0x1234);
     EXPECT_EQ(std::get<text_type>(stream.get<value_type>()).value, "wire");
@@ -695,7 +695,7 @@ TEST(ByteStreamTest, LengthPrefixedValuesComposeIdenticallyInsideVariants) {
 
     byte_stream::stream standalone;
     standalone.set(text);
-    EXPECT_EQ(standalone.debug_string(true), "04 77 69 72 65");
+    EXPECT_EQ(standalone.to_hex(true), "04 77 69 72 65");
 
     using value_type = std::variant<uint16_t, text_type>;
     byte_stream::stream variant_stream;
@@ -728,7 +728,7 @@ TEST(ByteStreamTest, UsesAdlForCustomProtocolTypes) {
     stream.set_endian(byte_stream::endian::little);
     stream.set(expected);
 
-    EXPECT_EQ(stream.debug_string(true), "07 33 22 11 12 02 02 01 04 03");
+    EXPECT_EQ(stream.to_hex(true), "07 33 22 11 12 02 02 01 04 03");
 
     sample::packet decoded;
     stream.get_to(decoded);
@@ -789,7 +789,7 @@ TEST(ByteStreamTest, WritesAndReadsNestedStructs) {
     stream.set_endian(byte_stream::endian::little);
     stream.set(expected);
 
-    EXPECT_EQ(stream.debug_string(true), "34 12 07 33 22 11 12 02 02 01 04 03 aa 55");
+    EXPECT_EQ(stream.to_hex(true), "34 12 07 33 22 11 12 02 02 01 04 03 aa 55");
 
     sample::envelope decoded;
     stream.get_to(decoded);
@@ -803,7 +803,7 @@ TEST(ByteStreamTest, SupportsExternalCodecSpecialization) {
     stream.set_endian(byte_stream::endian::little);
     stream.set(expected);
 
-    EXPECT_EQ(stream.debug_string(true), "12 c3 b2 a1");
+    EXPECT_EQ(stream.to_hex(true), "12 c3 b2 a1");
 
     codec_sample::frame_id decoded;
     stream.get_to(decoded);
@@ -822,7 +822,7 @@ TEST(ByteStreamTest, MacroDefinesNonIntrusiveCustomProtocolTypes) {
     stream.set_endian(byte_stream::endian::little);
     stream.set(expected);
 
-    EXPECT_EQ(stream.debug_string(true), "02 34 12 33 22 11 aa bb cc");
+    EXPECT_EQ(stream.to_hex(true), "02 34 12 33 22 11 aa bb cc");
 
     macro_sample::public_header decoded;
     stream.get_to(decoded);
@@ -840,7 +840,7 @@ TEST(ByteStreamTest, MacroDefinesIntrusiveCustomProtocolTypes) {
     stream.set_endian(byte_stream::endian::little);
     stream.set(expected);
 
-    EXPECT_EQ(stream.debug_string(true), "09 33 22 11 44 33 66 55");
+    EXPECT_EQ(stream.to_hex(true), "09 33 22 11 44 33 66 55");
 
     macro_sample::private_header decoded;
     stream.get_to(decoded);
@@ -851,26 +851,26 @@ TEST(ByteStreamTest, MacroDefinesOneWayCustomProtocolTypes) {
     byte_stream::stream public_out;
     public_out.set_endian(byte_stream::endian::little);
     public_out.set(macro_sample::public_serialize_only_header{ 5, 0x00112233 });
-    EXPECT_EQ(public_out.debug_string(true), "05 33 22 11");
+    EXPECT_EQ(public_out.to_hex(true), "05 33 22 11");
 
     byte_stream::stream public_in(std::vector<uint8_t>{ 6, 0x66, 0x55, 0x44 });
     public_in.set_endian(byte_stream::endian::little);
     macro_sample::public_deserialize_only_header public_decoded;
     public_in.get_to(public_decoded);
     EXPECT_EQ(public_decoded.id, 6);
-    EXPECT_EQ(public_decoded.area_code, 0x00445566);
+    EXPECT_EQ(public_decoded.device_id, 0x00445566);
 
     byte_stream::stream private_out;
     private_out.set_endian(byte_stream::endian::little);
     private_out.set(macro_sample::private_serialize_only_header{ 7, 0x00778899 });
-    EXPECT_EQ(private_out.debug_string(true), "07 99 88 77");
+    EXPECT_EQ(private_out.to_hex(true), "07 99 88 77");
 
     byte_stream::stream private_in(std::vector<uint8_t>{ 8, 0xCC, 0xBB, 0xAA });
     private_in.set_endian(byte_stream::endian::little);
     macro_sample::private_deserialize_only_header private_decoded;
     private_in.get_to(private_decoded);
     EXPECT_EQ(private_decoded.id(), 8);
-    EXPECT_EQ(private_decoded.area_code(), 0x00AABBCC);
+    EXPECT_EQ(private_decoded.device_id(), 0x00AABBCC);
 }
 
 TEST(ByteStreamTest, ReportsInvalidInputClearly) {
@@ -993,14 +993,14 @@ TEST(ByteStreamTest, ClearsAndAppendsBuffers) {
     stream.reserve(16);
     stream.append(suffix);
 
-    EXPECT_EQ(stream.debug_string(true), "01 02 03 04");
+    EXPECT_EQ(stream.to_hex(true), "01 02 03 04");
     EXPECT_EQ(stream.data(), stream.buffer().data());
 
     stream.append(stream);
-    EXPECT_EQ(stream.debug_string(true), "01 02 03 04 01 02 03 04");
+    EXPECT_EQ(stream.to_hex(true), "01 02 03 04 01 02 03 04");
 
     stream.set(stream.buffer(), 4);
-    EXPECT_EQ(stream.debug_string(true), "01 02 03 04 01 02 03 04 01 02 03 04");
+    EXPECT_EQ(stream.to_hex(true), "01 02 03 04 01 02 03 04 01 02 03 04");
 
     stream.clear();
     EXPECT_TRUE(stream.empty());
@@ -1088,4 +1088,67 @@ TEST(ByteStreamTest, SeekHandlesEndAndRejectsPastEndWithoutMoving) {
     EXPECT_TRUE(stream.seek(1));
     EXPECT_EQ(stream.get<uint8_t>(), 0x02);
     EXPECT_TRUE(stream.eof());
+}
+
+TEST(HexConversion, FormatsCompleteBufferWithoutChangingState) {
+    byte_stream::stream stream(std::vector<uint8_t>{0x00, 0x09, 0xab, 0xef, 0xff});
+    ASSERT_TRUE(stream.seek(2));
+    stream.set_endian(byte_stream::endian::big);
+    EXPECT_EQ(stream.to_hex(), "0009abefff");
+    EXPECT_EQ(stream.to_hex(true), "00 09 ab ef ff");
+    EXPECT_EQ(stream.to_hex(false, true), "0009ABEFFF");
+    EXPECT_EQ(stream.to_hex(true, true), "00 09 AB EF FF");
+    EXPECT_EQ(stream.position(), 2U);
+    EXPECT_EQ(stream.get_endian(), byte_stream::endian::big);
+    EXPECT_EQ(byte_stream::stream::to_hex(stream.buffer(), true, true), stream.to_hex(true, true));
+    EXPECT_EQ(byte_stream::stream{}.to_hex(), "");
+    EXPECT_EQ(byte_stream::stream::to_hex({}, true, true), "");
+    EXPECT_EQ(byte_stream::stream::to_hex(std::vector<uint8_t>{0xab}, true), "ab");
+}
+
+TEST(HexConversion, AcceptsMixedCaseAndAllAsciiWhitespace) {
+    const std::vector<uint8_t> expected{0x00, 0xab, 0xcd, 0xef};
+    EXPECT_EQ(byte_stream::stream::from_hex("00aBcDeF"), expected);
+    EXPECT_EQ(byte_stream::stream::from_hex(" \t00 aB\ncD\reF\f\v"), expected);
+    EXPECT_EQ(byte_stream::stream::from_hex("A B"), (std::vector<uint8_t>{0xab}));
+    EXPECT_TRUE(byte_stream::stream::from_hex({}).empty());
+    EXPECT_TRUE(byte_stream::stream::from_hex(" \t\n\r\f\v").empty());
+    const char text[] = {'x', 'A', 'b', 'y'};
+    EXPECT_EQ(byte_stream::stream::from_hex(std::string_view(text + 1, 2)),
+        (std::vector<uint8_t>{0xab}));
+}
+
+TEST(HexConversion, RejectsMalformedTextWithInvalidValue) {
+    for (const auto* text : {"0", " ab c ", "GG", "0x12", "12:34", "12,34", "+1", "-1"}) {
+        expect_byte_stream_error([&] { (void)byte_stream::stream::from_hex(text); },
+            byte_stream::byte_stream_errc::invalid_value);
+    }
+    const char nul[] = {'0', '0', '\0', '0'};
+    expect_byte_stream_error([&] {
+        (void)byte_stream::stream::from_hex(std::string_view(nul, sizeof(nul)));
+    }, byte_stream::byte_stream_errc::invalid_value);
+    // Exhaust all single-byte characters, including negative char values.
+    for (unsigned value = 0; value < 256; ++value) {
+        const bool hex = (value >= '0' && value <= '9') ||
+            (value >= 'a' && value <= 'f') || (value >= 'A' && value <= 'F');
+        const bool space = value == ' ' || (value >= '\t' && value <= '\r');
+        if (hex || space) continue;
+        const std::string text(2, static_cast<char>(value));
+        expect_byte_stream_error([&] { (void)byte_stream::stream::from_hex(text); },
+            byte_stream::byte_stream_errc::invalid_value);
+    }
+}
+
+TEST(HexConversion, RoundTripsEveryByteInEveryOutputFormat) {
+    std::vector<uint8_t> bytes;
+    for (unsigned value = 0; value < 256; ++value) {
+        bytes.push_back(static_cast<uint8_t>(value));
+    }
+    for (bool spaces : {false, true}) {
+        for (bool uppercase : {false, true}) {
+            const auto text = byte_stream::stream::to_hex(bytes, spaces, uppercase);
+            EXPECT_EQ(text.size(), spaces ? 767U : 512U);
+            EXPECT_EQ(byte_stream::stream::from_hex(text), bytes);
+        }
+    }
 }

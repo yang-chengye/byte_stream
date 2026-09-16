@@ -18,7 +18,7 @@ volatile uint64_t sink = 0;
 
 struct packet {
     uint16_t sequence{};
-    uint32_t area_code{};
+    uint32_t device_id{};
     uint8_t type{};
     std::array<uint16_t, 8> values{};
     std::optional<uint16_t> quality;
@@ -27,7 +27,7 @@ struct packet {
 
 void to_byte_stream(byte_stream::stream& stream, const packet& value) {
     stream.set(value.sequence);
-    stream.set(value.area_code, 3);
+    stream.set(value.device_id, 3);
     stream.set(value.type);
     stream.set(value.values);
     stream.set(value.quality);
@@ -37,7 +37,7 @@ void to_byte_stream(byte_stream::stream& stream, const packet& value) {
 
 void from_byte_stream(const byte_stream::stream& stream, packet& value) {
     value.sequence = stream.get<uint16_t>();
-    value.area_code = stream.get<uint32_t>(3);
+    value.device_id = stream.get<uint32_t>(3);
     value.type = stream.get<uint8_t>();
     stream.get_to(value.values);
     stream.get_to(value.quality);
@@ -133,7 +133,7 @@ std::vector<packet> make_packets(std::size_t count) {
     for (std::size_t i = 0; i < count; ++i) {
         packet value;
         value.sequence = static_cast<uint16_t>(i);
-        value.area_code = 0x00110000u | static_cast<uint32_t>(i & 0xFFFFu);
+        value.device_id = 0x00110000u | static_cast<uint32_t>(i & 0xFFFFu);
         value.type = static_cast<uint8_t>(i & 0x7Fu);
         for (std::size_t j = 0; j < value.values.size(); ++j) {
             value.values[j] = static_cast<uint16_t>(i + j * 3u);
@@ -156,7 +156,7 @@ std::vector<nested_packet> make_nested_packets(std::size_t count) {
         nested_packet value;
         value.timestamp = static_cast<uint32_t>(0x60000000u + i);
         value.primary.sequence = static_cast<uint16_t>(i);
-        value.primary.area_code = 0x00110000u | static_cast<uint32_t>(i & 0xFFFFu);
+        value.primary.device_id = 0x00110000u | static_cast<uint32_t>(i & 0xFFFFu);
         value.primary.type = static_cast<uint8_t>(i & 0x7Fu);
         value.primary.payload = make_payload(16);
         if ((i & 1u) == 0) {

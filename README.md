@@ -11,7 +11,7 @@
 - 提供零拷贝 `byte_reader` 和无分配固定容量 `byte_writer`，支持 `-fno-exceptions`
 - 支持 little-endian / big-endian
 - 支持整数、枚举、`std::byte`、`float`、`double`、`bool`
-- 支持非标准整数宽度，例如 3 字节行政区划码
+- 支持非标准整数宽度，例如占 3 字节的 24 位设备标识
 - 支持顺序容器、`std::array`、C 数组的批量读写
 - 支持 `std::optional`、智能指针、`std::pair`、`std::tuple`、`std::variant`
 - 支持通过 ADL、宏或 `byte_stream_codec<T>` 扩展自定义协议结构
@@ -60,7 +60,7 @@ buffer 所有权、分配行为、原子 API、自定义 codec 和线程约束�
 
 ```cpp
 const auto& bytes = stream.buffer();
-const auto hex = stream.debug_string(true); // "01 34 12 c3 b2 a1"
+const auto hex = stream.to_hex(true); // "01 34 12 c3 b2 a1"
 
 // 只读下标访问和完整 buffer 范围遍历均不改变读取位置
 const auto first = stream[0];
@@ -86,9 +86,9 @@ if (writer.write<uint16_t>(0x1234) != byte_stream::byte_stream_errc::ok ||
 
 byte_stream::byte_reader reader(writer.view());
 uint16_t sequence = 0;
-uint32_t area_code = 0;
+uint32_t device_id = 0;
 if (reader.read(sequence) != byte_stream::byte_stream_errc::ok ||
-    reader.read(area_code, 3) != byte_stream::byte_stream_errc::ok) {
+    reader.read(device_id, 3) != byte_stream::byte_stream_errc::ok) {
     // 输入截断、非法值或参数错误
 }
 ```
@@ -337,20 +337,20 @@ namespace protocol {
 
 struct packet {
     uint8_t id;
-    uint32_t area_code; // 协议里占 3 字节
+    uint32_t device_id; // 24 位设备标识，协议里占 3 字节
     std::vector<uint16_t> values;
 };
 
 void to_byte_stream(byte_stream::stream& stream, const packet& value) {
     stream.set(value.id);
-    stream.set(value.area_code, 3);
+    stream.set(value.device_id, 3);
     stream.set(static_cast<uint8_t>(value.values.size()));
     stream.set(value.values);
 }
 
 void from_byte_stream(const byte_stream::stream& stream, packet& value) {
     value.id = stream.get<uint8_t>();
-    value.area_code = stream.get<uint32_t>(3);
+    value.device_id = stream.get<uint32_t>(3);
 
     const auto count = stream.get<uint8_t>();
     stream.get_to(value.values, count);
@@ -367,14 +367,14 @@ namespace protocol {
 struct header {
     uint8_t version;
     uint16_t sequence;
-    uint32_t area_code; // 协议里占 3 字节
+    uint32_t device_id; // 24 位设备标识，协议里占 3 字节
     std::array<uint8_t, 4> magic;
 };
 
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(header,
     version,
     sequence,
-    (area_code, 3),
+    (device_id, 3),
     magic)
 
 } // namespace protocol
@@ -388,16 +388,16 @@ namespace protocol {
 class header {
 public:
     header() = default;
-    header(uint8_t version, uint32_t area_code)
-        : version_(version), area_code_(area_code) {}
+    header(uint8_t version, uint32_t device_id)
+        : version_(version), device_id_(device_id) {}
 
 private:
     uint8_t version_{};
-    uint32_t area_code_{};
+    uint32_t device_id_{};
 
     BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(header,
         version_,
-        (area_code_, 3))
+        (device_id_, 3))
 };
 
 } // namespace protocol
@@ -412,19 +412,19 @@ private:
 ```cpp
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(header,
     version,
-    (area_code, 3))
+    (device_id, 3))
 
 BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_DESERIALIZE(header,
     version,
-    (area_code, 3))
+    (device_id, 3))
 
 BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(header,
     version_,
-    (area_code_, 3))
+    (device_id_, 3))
 
 BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_DESERIALIZE(header,
     version_,
-    (area_code_, 3))
+    (device_id_, 3))
 ```
 
 如果要把某个类型的支持完全放在类外，也可以特化 `byte_stream::byte_stream_codec<T>`。这适合库适配层、第三方类型、或不想在类型命名空间里暴露 ADL 函数的场景：
@@ -487,7 +487,8 @@ auto decoded = byte_stream::stream::parse<protocol::packet>(stream.buffer());
 | `begin()` / `end()` | 只读遍历完整 buffer，与当前读取位置无关 |
 | `take_buffer()` | 零拷贝移出底层 buffer，并将 stream 置空、position 归零 |
 | `operator+` / `operator+=` | 拼接两个 stream 的完整 buffer；保留左操作数的 position 和 endian |
-| `debug_string(true)` | 生成十六进制字符串，适合日志和测试断言 |
+| `to_hex(with_spaces, uppercase)` | 将完整 buffer 转为十六进制文本；两个参数默认均为 false |
+| `stream::from_hex(text)` | 将十六进制文本转为字节 vector，接受混合大小写并忽略 ASCII 空白 |
 | `seek(pos)` / `reset_position()` | 调整读取位置 |
 | `remaining()` / `eof()` | 查看剩余可读字节 |
 | `set_endian(endian)` | 切换 wire 字节序，可选 `little` / `big`，默认 `little` |
@@ -496,6 +497,28 @@ auto decoded = byte_stream::stream::parse<protocol::packet>(stream.buffer());
 `write_bytes` 写入调用方固定 buffer；`byte_reader::read` / `read_compact` / `read_bytes` 读取
 调用方 buffer；`read_view` 可直接返回输入的子视图。所有操作返回 `byte_stream_errc`，
 其中 `ok` 表示成功，`insufficient_space` 表示 writer 剩余容量不足。
+
+## 十六进制转换
+
+```cpp
+byte_stream::stream s(std::vector<uint8_t>{0x01, 0xab, 0xcd});
+s.to_hex();             // "01abcd"
+s.to_hex(true);         // "01 ab cd"
+s.to_hex(false, true);  // "01ABCD"
+s.to_hex(true, true);   // "01 AB CD"
+auto text = byte_stream::stream::to_hex(s.buffer(), true, true);
+auto bytes = byte_stream::stream::from_hex("01 aB CD");
+byte_stream::stream restored(std::move(bytes));
+```
+
+`to_hex` 返回持有型字符串，静态重载接受 `const std::vector<uint8_t>&`。
+它转换完整 buffer，不改变读取位置或字节序设置。
+`from_hex(std::string_view)` 返回独立持有的 `std::vector<uint8_t>`，不保留输入视图。
+它接受大小写混合，忽略任意位置的 ASCII 空格、制表符、换行、回车、换页和垂直制表符；
+因此 `"A B"` 解码为 `0xAB`。空文本或全空白输入返回空 vector。
+十六进制字符数为奇数或包含非法字符时抛出错误码为 `invalid_value` 的 `byte_stream_error`；
+不接受 `0x` 前缀、逗号或冒号。输出长度溢出报告 `size_overflow`。
+两种转换都可能分配内存，与端序设置无关，不改变二进制 wire format。
 
 ## 异常处理
 
