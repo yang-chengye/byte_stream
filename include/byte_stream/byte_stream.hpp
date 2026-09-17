@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.4
+ * Version: 0.1.5
  * License: MIT
  */
 
@@ -1270,11 +1270,13 @@ private:
             const auto logical_end = begin + old_size;
             const auto allocation_end = begin + buf_.capacity();
             const auto source = reinterpret_cast<uintptr_t>(first);
-            if (source >= begin && source <= logical_end) {
+            // The allocation is half-open: its end can be the start of an
+            // independent adjacent buffer, which must not be treated as aliased.
+            if (source >= begin && source < allocation_end && source <= logical_end) {
                 source_offset = static_cast<size_t>(source - begin);
                 source_in_buffer = true;
             }
-            else if (source > logical_end && source <= allocation_end) {
+            else if (source > logical_end && source < allocation_end) {
                 throw byte_stream_error(byte_stream_errc::invalid_size,
                     "byte_stream: appended source is outside the current logical buffer");
             }

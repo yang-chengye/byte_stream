@@ -32,3 +32,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(byte_stream_header_no_exceptions PRIVATE -fno-exceptions)
 endif()
 add_test(NAME byte_stream_header_no_exceptions COMMAND byte_stream_header_no_exceptions)
+
+add_executable(byte_stream_adjacent_allocations adjacent_allocations.cpp)
+target_link_libraries(byte_stream_adjacent_allocations PRIVATE byte_stream::byte_stream)
+byte_stream_configure_development_target(byte_stream_adjacent_allocations)
+add_test(NAME byte_stream_adjacent_allocations COMMAND byte_stream_adjacent_allocations)

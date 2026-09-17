@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(
     byte_stream
-    VERSION 0.1.4
+    VERSION 0.1.5
     DESCRIPTION "Header-only C++17 binary byte stream encoder and decoder"
     LANGUAGES CXX
 )
