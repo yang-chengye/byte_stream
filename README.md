@@ -424,6 +424,7 @@ private:
 } // namespace protocol
 ```
 
+每个类型宏支持 1～64 个字段参数，不包含类型名；`(member, n)` 计为一个字段参数。
 宏字段可以写成 `member` 或 `(member, n)`。裸字段使用默认宽度；`n` 会作为第二个参数传给 `set` / `get_to`，因此可以表达 3 字节整数、固定读取前 N 个数组元素等协议字段。宏按字段列表顺序编码，不会把字段名或长度信息写入二进制流。遇到前置长度字段、校验和、变长容器读取等更复杂协议细节时，可以继续手写 `to_byte_stream` / `from_byte_stream`。
 
 这些字段宏依赖标准预处理器展开规则。通过 `byte_stream::byte_stream` CMake target 使用时，MSVC 会自动启用 `/Zc:preprocessor`；直接调用 MSVC 编译器时需要手动添加该选项。

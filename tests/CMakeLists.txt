@@ -9,7 +9,7 @@ add_subdirectory(
     EXCLUDE_FROM_ALL
 )
 
-add_executable(byte_stream_tests main.cpp property_tests.cpp byte_io.cpp)
+add_executable(byte_stream_tests main.cpp property_tests.cpp byte_io.cpp macro_limits.cpp)
 target_link_libraries(byte_stream_tests PRIVATE byte_stream::byte_stream GTest::gtest_main)
 byte_stream_configure_development_target(byte_stream_tests)
 

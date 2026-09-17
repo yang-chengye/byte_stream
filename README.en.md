@@ -426,6 +426,8 @@ private:
 
 Macro fields can be written as `member` or `(member, n)`. A bare field uses the default width; `n` is passed as the second argument to `set` / `get_to`, allowing fields such as 3-byte integers or the first N array elements. Macros encode in field-list order without adding field names or length metadata to the stream. For more complex protocol details, such as preceding length fields, checksums, or reads of variable-length containers, write `to_byte_stream` / `from_byte_stream` manually.
 
+Each type macro accepts 1–64 field arguments, excluding the type name; `(member, n)` counts as one field argument.
+
 These field macros require standard preprocessor expansion rules. The `byte_stream::byte_stream` CMake target automatically enables `/Zc:preprocessor` with MSVC. Add this option yourself when invoking MSVC directly.
 
 If a type needs conversion in only one direction, use a macro that generates just one function:

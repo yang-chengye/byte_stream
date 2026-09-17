@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.2
+ * Version: 0.1.3
  * License: MIT
  */
 
@@ -2157,11 +2157,17 @@ struct byte_stream_codec<T, std::enable_if_t<
 #define BYTE_STREAM_DETAIL_CAT_I(a, b) a##b
 
 #define BYTE_STREAM_DETAIL_NARG(...) \
-    BYTE_STREAM_DETAIL_NARG_I(__VA_ARGS__, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, \
-        21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+    BYTE_STREAM_DETAIL_NARG_I(__VA_ARGS__, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, \
+    48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, \
+    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, \
+    16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, \
+    0)
 #define BYTE_STREAM_DETAIL_NARG_I(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, \
-    _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, \
-    _29, _30, _31, _32, N, ...) N
+    _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, \
+    _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, \
+    _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, \
+    _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, \
+    _61, _62, _63, _64, N, ...) N
 
 #define BYTE_STREAM_DETAIL_FOR_EACH(action, ...) \
     BYTE_STREAM_DETAIL_CAT(BYTE_STREAM_DETAIL_FOR_EACH_, BYTE_STREAM_DETAIL_NARG(__VA_ARGS__))(action, __VA_ARGS__)
@@ -2197,6 +2203,38 @@ struct byte_stream_codec<T, std::enable_if_t<
 #define BYTE_STREAM_DETAIL_FOR_EACH_30(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_29(action, __VA_ARGS__)
 #define BYTE_STREAM_DETAIL_FOR_EACH_31(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_30(action, __VA_ARGS__)
 #define BYTE_STREAM_DETAIL_FOR_EACH_32(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_31(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_33(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_32(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_34(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_33(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_35(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_34(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_36(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_35(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_37(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_36(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_38(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_37(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_39(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_38(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_40(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_39(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_41(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_40(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_42(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_41(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_43(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_42(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_44(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_43(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_45(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_44(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_46(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_45(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_47(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_46(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_48(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_47(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_49(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_48(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_50(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_49(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_51(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_50(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_52(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_51(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_53(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_52(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_54(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_53(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_55(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_54(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_56(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_55(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_57(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_56(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_58(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_57(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_59(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_58(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_60(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_59(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_61(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_60(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_62(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_61(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_63(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_62(action, __VA_ARGS__)
+#define BYTE_STREAM_DETAIL_FOR_EACH_64(action, x, ...) action(x) BYTE_STREAM_DETAIL_FOR_EACH_63(action, __VA_ARGS__)
 
 #define BYTE_STREAM_DETAIL_FIELD_ARG_COUNT(...) BYTE_STREAM_DETAIL_FIELD_ARG_COUNT_I(__VA_ARGS__, 2, 1, 0)
 #define BYTE_STREAM_DETAIL_FIELD_ARG_COUNT_I(_1, _2, N, ...) N
@@ -2234,7 +2272,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 为公开成员类型生成非侵入式序列化函数。
  * @param Type 要支持的类型名；宏应在该类型所在命名空间中调用。
- * @param ... 按线格式顺序排列的成员列表；member 使用默认大小，(member, n) 将 n
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type）；member 使用默认大小，(member, n) 将 n
  * 传递给 set。
  */
 #define BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(Type, ...) \
@@ -2245,7 +2283,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 为公开成员类型生成非侵入式反序列化函数。
  * @param Type 要支持的类型名；宏应在该类型所在命名空间中调用。
- * @param ... 按线格式顺序排列的成员列表；member 使用默认大小，(member, n) 将 n
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type）；member 使用默认大小，(member, n) 将 n
  * 传递给 get_to。
  */
 #define BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_DESERIALIZE(Type, ...) \
@@ -2256,7 +2294,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 为公开成员类型同时生成非侵入式序列化和反序列化函数。
  * @param Type 要支持的类型名；宏应在该类型所在命名空间中调用。
- * @param ... 按线格式顺序排列的成员列表，支持 member 与 (member, n) 两种写法。
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type），支持 member 与 (member, n) 两种写法。
  */
 #define BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE(Type, ...) \
     BYTE_STREAM_DEFINE_TYPE_NON_INTRUSIVE_ONLY_SERIALIZE(Type, __VA_ARGS__) \
@@ -2265,7 +2303,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 在类型内部生成友元序列化函数，可访问私有成员。
  * @param Type 当前类型名。
- * @param ... 按线格式顺序排列的成员列表；member 使用默认大小，(member, n) 指定大小。
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type）；member 使用默认大小，(member, n) 指定大小。
  */
 #define BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(Type, ...) \
     friend void to_byte_stream(::byte_stream::stream& stream, const Type& value) { \
@@ -2275,7 +2313,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 在类型内部生成友元反序列化函数，可访问私有成员。
  * @param Type 当前类型名。
- * @param ... 按线格式顺序排列的成员列表；member 使用默认大小，(member, n) 指定大小。
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type）；member 使用默认大小，(member, n) 指定大小。
  */
 #define BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_DESERIALIZE(Type, ...) \
     friend void from_byte_stream(const ::byte_stream::stream& stream, Type& value) { \
@@ -2285,7 +2323,7 @@ struct byte_stream_codec<T, std::enable_if_t<
 /**
  * @brief 在类型内部同时生成友元序列化和反序列化函数，可访问私有成员。
  * @param Type 当前类型名。
- * @param ... 按线格式顺序排列的成员列表，支持 member 与 (member, n) 两种写法。
+ * @param ... 按线格式顺序排列的 1～64 个成员（不含 Type），支持 member 与 (member, n) 两种写法。
  */
 #define BYTE_STREAM_DEFINE_TYPE_INTRUSIVE(Type, ...) \
     BYTE_STREAM_DEFINE_TYPE_INTRUSIVE_ONLY_SERIALIZE(Type, __VA_ARGS__) \

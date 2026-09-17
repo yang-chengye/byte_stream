@@ -583,6 +583,7 @@ void benchmark_variant_records() {
 }
 
 void benchmark_object_assignment();
+void benchmark_macro_fields();
 
 } // namespace bench
 
@@ -604,5 +605,6 @@ int main() {
     bench::benchmark_atomic_packet_reads();
     bench::benchmark_variant_records();
     bench::benchmark_object_assignment();
+    bench::benchmark_macro_fields();
     std::cout << "sink=" << bench::sink << '\n';
 }
