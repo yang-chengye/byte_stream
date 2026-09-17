@@ -18,7 +18,7 @@
 
 - 从 `const void*`、`std::string` 或 const 字节 vector 构造时会复制输入。
 - 从右值字节 vector 构造时会转移其内存分配。
-- `buffer()` 和 `data()` 返回非持有视图。任何写入、`append`、`clear`、赋值或 `take_buffer()` 都可能使其地址失效。
+- `buffer()` 和 `data()` 返回非持有视图。任何写入、`append`、`reserve`、`resize`、`clear`、赋值或 `take_buffer()` 都可能使其地址失效。
 - `operator[]`、`at()` 和迭代器仅提供只读访问，始终面向完整 buffer，不受读取位置影响；修改 stream 后，已取得的引用和迭代器可能失效。
 - `operator+` 和 `operator+=` 拼接两个对象的完整 buffer，不读取或改变右操作数的 position；结果保留左操作数的 position 和 endian。
 - `take_buffer()` 在不复制的情况下把内存转移给调用者，并将 stream 置为空且 position 归零；已配置的字节序保持不变。
@@ -49,6 +49,21 @@
 赋值所用自定义 codec 必须只追加数据，不改变字节序或读取位置。
 需要强异常保证或输入引用原 buffer 时，可先用相同字节序的独立流编码，成功后再移动赋值。
 对象赋值可能因扩容或 codec 失败而抛出异常，返回 `stream&`。
+
+## Buffer 长度
+
+`explicit stream(size_t count, uint8_t value = 0)` 创建 count 个相同字节，默认为零；
+初始读取位置为 0，字节序为小端。它直接初始化持有的 buffer，不需要临时字节 vector。
+
+`resize(size_t count, uint8_t value = 0)` 保留已有前缀，只填充新增字节；
+长度相同时不改写内容，缩小时丢弃尾部，容量不缩减。字节序不变，读取位置为
+`min(原位置, count)`。容量足够时不分配，扩展超出容量时可重新分配。
+重新分配会使已有 buffer 视图失效；截断会使被移除字节的引用、指针和迭代器失效。
+`clear(); resize(count);` 可复用容量并将全部逻辑内容填零。
+
+构造和 resize 均检查 count 是否超过底层 vector 的最大长度，超限报告 `size_overflow`；
+内存分配失败遵循标准容器的异常行为。resize 失败时 buffer、读取位置和字节序不变。
+填充值是单个原始字节，不受字节序影响；这些接口不增加 wire 元数据。
 
 ## 零分配和无异常 API
 

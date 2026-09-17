@@ -323,6 +323,93 @@ TEST(ByteStreamUtilsTest, RejectsInvalidEscapeSequences) {
         byte_stream::byte_stream_errc::invalid_size);
 }
 
+TEST(ByteStreamTest, ConstructsFilledBuffer) {
+    using byte_stream::stream;
+    static_assert(!std::is_convertible_v<size_t, stream>);
+    const stream zeros(172);
+    EXPECT_EQ(zeros.buffer(), std::vector<uint8_t>(172, 0));
+    EXPECT_EQ(zeros.position(), 0u);
+    EXPECT_EQ(zeros.get_endian(), byte_stream::endian::little);
+    const stream filled(172, 0xAB);
+    EXPECT_EQ(filled.buffer(), std::vector<uint8_t>(172, 0xAB));
+    EXPECT_EQ(filled.position(), 0u);
+    EXPECT_EQ(filled.get_endian(), byte_stream::endian::little);
+    EXPECT_TRUE(stream(0).empty());
+    EXPECT_TRUE(stream(size_t{0}, 0xFF).empty());
+    EXPECT_TRUE(stream(nullptr, 0).empty());
+    const uint8_t raw[]{0x12, 0x34};
+    EXPECT_EQ(stream(raw, sizeof(raw)).buffer(), (std::vector<uint8_t>{0x12, 0x34}));
+}
+
+TEST(ByteStreamTest, ResizePreservesPrefixAndOnlyFillsNewBytes) {
+    byte_stream::stream stream(byte_stream::endian::big);
+    stream.reserve(256);
+    stream.set<uint16_t>(0x1234);
+    ASSERT_TRUE(stream.seek(1));
+    const auto* data = stream.data();
+    const auto capacity = stream.buffer().capacity();
+    stream.resize(4);
+    EXPECT_EQ(stream.buffer(), (std::vector<uint8_t>{0x12, 0x34, 0, 0}));
+    stream.resize(6, 0xAB);
+    EXPECT_EQ(stream.buffer(), (std::vector<uint8_t>{0x12, 0x34, 0, 0, 0xAB, 0xAB}));
+    stream.resize(6, 0xFF);
+    EXPECT_EQ(stream.buffer(), (std::vector<uint8_t>{0x12, 0x34, 0, 0, 0xAB, 0xAB}));
+    EXPECT_EQ(stream.position(), 1u);
+    EXPECT_EQ(stream.get_endian(), byte_stream::endian::big);
+    EXPECT_EQ(stream.data(), data);
+    EXPECT_EQ(stream.buffer().capacity(), capacity);
+    stream.clear();
+    stream.resize(172);
+    EXPECT_EQ(stream.buffer(), std::vector<uint8_t>(172, 0));
+    EXPECT_EQ(stream.position(), 0u);
+    EXPECT_EQ(stream.data(), data);
+}
+
+TEST(ByteStreamTest, ResizeClampsCursorAndPreservesCapacity) {
+    byte_stream::stream stream(8, 0xAB);
+    stream.set_endian(byte_stream::endian::big);
+    const auto capacity = stream.buffer().capacity();
+    ASSERT_TRUE(stream.seek(3));
+    stream.resize(5);
+    EXPECT_EQ(stream.position(), 3u);
+    stream.resize(3);
+    EXPECT_EQ(stream.position(), 3u);
+    EXPECT_TRUE(stream.eof());
+    stream.resize(2);
+    EXPECT_EQ(stream.position(), 2u);
+    EXPECT_EQ(stream.remaining(), 0u);
+    EXPECT_EQ(stream.buffer(), std::vector<uint8_t>(2, 0xAB));
+    stream.resize(0);
+    EXPECT_TRUE(stream.empty());
+    EXPECT_EQ(stream.position(), 0u);
+    EXPECT_EQ(stream.buffer().capacity(), capacity);
+    stream.resize(8);
+    EXPECT_EQ(stream.buffer(), std::vector<uint8_t>(8, 0));
+    EXPECT_EQ(stream.get_endian(), byte_stream::endian::big);
+}
+
+TEST(ByteStreamTest, ResizeGrowthAndOverflowPreserveState) {
+    byte_stream::stream stream(4, 0xAB);
+    stream.set_endian(byte_stream::endian::big);
+    ASSERT_TRUE(stream.seek(2));
+    const auto larger_size = stream.buffer().capacity() + 17;
+    stream.resize(larger_size, 0xCD);
+    std::vector<uint8_t> expected(larger_size, 0xCD);
+    std::fill_n(expected.begin(), 4, 0xAB);
+    EXPECT_EQ(stream.buffer(), expected);
+    EXPECT_EQ(stream.position(), 2u);
+    const auto capacity = stream.buffer().capacity();
+    const auto too_large = (std::numeric_limits<size_t>::max)();
+    expect_byte_stream_error([&] { stream.resize(too_large); },
+        byte_stream::byte_stream_errc::size_overflow);
+    EXPECT_EQ(stream.buffer(), expected);
+    EXPECT_EQ(stream.position(), 2u);
+    EXPECT_EQ(stream.get_endian(), byte_stream::endian::big);
+    EXPECT_EQ(stream.buffer().capacity(), capacity);
+    expect_byte_stream_error([&] { byte_stream::stream oversized(too_large); },
+        byte_stream::byte_stream_errc::size_overflow);
+}
+
 TEST(ByteStreamTest, ConstructsEmptyStreamWithExplicitEndian) {
     using byte_stream::endian;
     using byte_stream::stream;

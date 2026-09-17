@@ -43,6 +43,30 @@ and endian. It does not serialize an object. `set_endian()` changes neither exis
 nor read position; reading mixed-endian fields requires explicit switching.
 See [DESIGN.md](DESIGN.md) for the full contract.
 
+## Buffer size and byte filling
+
+```cpp
+byte_stream::stream bs(172);       // 172 zero bytes, little endian, position 0
+byte_stream::stream filled(8, 0xFF);
+bs.resize(256);                    // keep the first 172 bytes; zero-fill the tail
+bs.resize(300, 0xFF);              // only fill newly added bytes with 0xFF
+bs.resize(100);                    // truncate; clamp the read position to 100
+bs.clear();
+bs.resize(172);                    // replace the contents with 172 zero bytes
+```
+
+For an empty stream, use `stream{}` or `stream(0)`. With an explicit fill value,
+use `stream(size_t{0}, 0xFF)` to avoid ambiguity with the raw-pointer constructor.
+
+`resize(count, value = 0)` preserves endian and the existing prefix. Resizing to the
+same length leaves the bytes unchanged. Shrinking preserves capacity and clamps the
+read position to the new length; growing preserves the position and may reallocate.
+`reserve(count)` only reserves capacity and does not change the logical size.
+Requests beyond the buffer's maximum size throw `byte_stream_error` with `size_overflow`;
+allocation failures follow `std::vector` exception behavior. Failed resizing leaves
+bytes, position, and endian unchanged. Growth that reallocates invalidates buffer views;
+shrinking invalidates references and iterators to removed bytes.
+
 ## Quick start
 
 ```cpp

@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.5
+ * Version: 0.1.6
  * License: MIT
  */
 
@@ -555,6 +555,14 @@ public:
      * @param byte_order 后续读写使用的字节序。
      */
     explicit stream(endian byte_order) noexcept : endian_(byte_order) {}
+
+    /**
+     * @brief 构造 count 个相同字节，默认填零；读取位置为 0，字节序为小端。
+     * @throws byte_stream_error count 超过 buffer 最大长度时抛出 size_overflow。
+     */
+    explicit stream(size_t count, uint8_t value = 0) {
+        resize(count, value);
+    }
 
     /**
      * @brief 复制或移动字节流。
@@ -1133,6 +1141,23 @@ public:
                 "byte_stream: requested capacity exceeds buffer maximum");
         }
         buf_.reserve(new_capacity);
+    }
+
+    /**
+     * @brief 调整逻辑长度，保留已有前缀，仅用 value 填充新增字节。
+     * @note 保留字节序和容量；扩展可重新分配。缩小时读取位置不超过新长度。
+     * 失败时数据、读取位置和字节序不变；分配失败遵循 vector 的异常行为。
+     * @throws byte_stream_error count 超过 buffer 最大长度时抛出 size_overflow。
+     */
+    void resize(size_t count, uint8_t value = 0) {
+        if (count > buf_.max_size()) {
+            throw byte_stream_error(byte_stream_errc::size_overflow,
+                "byte_stream: requested size exceeds buffer maximum");
+        }
+        buf_.resize(count, value);
+        if (pos_ > count) {
+            pos_ = count;
+        }
     }
 
     /**

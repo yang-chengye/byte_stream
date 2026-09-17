@@ -41,6 +41,28 @@ bs.set_endian(byte_stream::endian::little);    // 影响后续读写
 `set_endian()` 不转换已有字节，也不改变读取位置；读取混合字节序字段时需要显式切换。
 完整契约见 [DESIGN.md](DESIGN.md)。
 
+## Buffer 长度与字节填充
+
+```cpp
+byte_stream::stream bs(172);       // 172 个零字节，小端，读取位置为 0
+byte_stream::stream filled(8, 0xFF);
+bs.resize(256);                    // 保留前 172 字节，新增部分填零
+bs.resize(300, 0xFF);              // 仅新增部分填充 0xFF
+bs.resize(100);                    // 截断，读取位置最多为 100
+bs.clear();
+bs.resize(172);                    // 将全部内容设置为 172 个零字节
+```
+
+空流可写 `stream{}` 或 `stream(0)`；零长度带填充值时使用 `stream(size_t{0}, 0xFF)`，
+避免整数零与原始指针构造重载产生歧义。
+
+`resize(count, value = 0)` 保留字节序和已有前缀；长度不变时不改写数据。
+缩小时保留容量，并将读取位置收紧到新长度以内；扩展时保留读取位置，可能重新分配内存。
+`reserve(count)` 只预留容量，不改变逻辑长度。
+超过 buffer 最大长度时报 `size_overflow`；分配失败遵循 `std::vector` 异常行为。
+调整失败时数据、位置和字节序不变。扩展引发重新分配时，已有 buffer 视图失效；
+缩小时，被移除字节的引用和迭代器失效。
+
 ## 快速开始
 
 ```cpp

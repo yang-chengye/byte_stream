@@ -584,6 +584,7 @@ void benchmark_variant_records() {
 
 void benchmark_object_assignment();
 void benchmark_macro_fields();
+void benchmark_buffer_resize();
 
 } // namespace bench
 
@@ -606,5 +607,6 @@ int main() {
     bench::benchmark_variant_records();
     bench::benchmark_object_assignment();
     bench::benchmark_macro_fields();
+    bench::benchmark_buffer_resize();
     std::cout << "sink=" << bench::sink << '\n';
 }
