@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.1
+ * Version: 0.1.2
  * License: MIT
  */
 
@@ -551,6 +551,12 @@ public:
     stream() = default;
 
     /**
+     * @brief 构造指定字节序的空流，读取位置为 0。
+     * @param byte_order 后续读写使用的字节序。
+     */
+    explicit stream(endian byte_order) noexcept : endian_(byte_order) {}
+
+    /**
      * @brief 复制或移动字节流。
      *
      * 复制会保留缓冲区、读取位置和字节序；移动后的源对象保持有效但内容未指定。
@@ -559,6 +565,20 @@ public:
     stream(stream&&) noexcept = default;
     stream& operator=(const stream&) = default;
     stream& operator=(stream&&) noexcept = default;
+
+    /**
+     * @brief 使用当前字节序编码对象，替换全部数据并将读取位置归零。
+     * @return 当前流的引用。
+     * @note 复用已有容量；失败时原数据已清除，可能留下部分新数据。
+     * value 不得引用本流的 buffer 或其中元素。自定义 codec 应只追加数据，
+     * 不改变字节序或读取位置。流之间的赋值复制或移动完整状态。
+     */
+    template <typename T, std::enable_if_t<!std::is_base_of_v<stream, std::decay_t<T>>, int> = 0>
+    stream& operator=(const T& value) {
+        clear();
+        set(value);
+        return *this;
+    }
 
     /**
      * @brief 复制已有字节数组并构造字节流。

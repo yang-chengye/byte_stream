@@ -20,6 +20,27 @@
 - 提供 CMake interface target、安装导出、示例和 GTest 测试
 - 持续集成覆盖 Linux、macOS、Windows
 
+## 流状态与对象赋值
+
+```cpp
+byte_stream::stream bs(byte_stream::endian::big); // 空流，位置为 0
+bs = uint16_t{0x1234};                         // 替换：12 34
+bs.set(uint16_t{0x5678});                      // 追加：12 34 56 78
+const auto first = bs.get<uint16_t>();         // 0x1234
+uint16_t second{};
+bs.get_to(second);                            // 0x5678
+bs.set_endian(byte_stream::endian::little);    // 影响后续读写
+```
+
+默认构造使用小端。对象赋值保留当前字节序，替换全部数据、读取位置归零，并复用已有容量；
+编码规则及默认宽度与 `set(obj)` 相同。失败时原数据已清除，可能留下部分新数据。
+输入对象不得引用目标流自身的 buffer 或其中元素；自定义序列化器必须只追加数据，
+不改变字节序或读取位置。
+
+流之间的复制、移动转移完整状态，包括字节数据、读取位置和字节序，不执行对象序列化。
+`set_endian()` 不转换已有字节，也不改变读取位置；读取混合字节序字段时需要显式切换。
+完整契约见 [DESIGN.md](DESIGN.md)。
+
 ## 快速开始
 
 ```cpp

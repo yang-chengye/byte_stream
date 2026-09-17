@@ -9,6 +9,9 @@
 持有型 `byte_stream::stream`（`set` / `get_to`）与非持有型 `byte_writer` / `byte_reader`（`write` / `read`）采用相同的标量和 compact 编码。选择零分配 API 不会改变规范字节。
 
 默认 wire 字节序为 `byte_stream::endian::little`。`set_endian(byte_stream::endian::big)` 会让后续固定宽度标量使用大端。
+`stream(endian::big)` 创建大端空流；默认构造创建小端空流。
+对象赋值 `bs = obj` 使用 bs 当前字节序替换全部编码数据，不写入字节序标记；
+流复制、移动则继承源流的字节序状态。切换字节序不转换已有字节，也不移动读取位置。
 公共 API 只提供这两种字节序模式；本库有意不暴露主机原生字节序，因为它无法定义可移植的wire 表示。
 
 切换字节序会影响固定宽度整数、枚举、浮点值以及由这些类型构成的容器，不影响单字节原始数据或 compact 整数。
@@ -100,6 +103,8 @@ Compact 编码与已配置的字节序无关。
 | `set<uint16_t>(0x1234)` | 默认/小端 | `34 12` |
 | `set<uint32_t>(0x00A1B2C3, 3)` | 默认/小端 | `c3 b2 a1` |
 | `set<uint16_t>(0x1234)` | 大端 | `12 34` |
+| `bs = uint16_t{0x1234}` | 小端 | `34 12` |
+| `bs = uint16_t{0x1234}` | 大端 | `12 34` |
 | `set<uint32_t>(0x00A1B2C3, 3)` | 大端 | `a1 b2 c3` |
 | `set<int16_t>(-2)` | 默认/小端 | `fe ff` |
 | `set<int16_t>(-2, 1)` | 任意 | `fe` |

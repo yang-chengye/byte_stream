@@ -20,6 +20,29 @@
 - CMake interface target, installation exports, examples, and GTest tests
 - Continuous integration on Linux, macOS, and Windows
 
+## Stream state and object assignment
+
+```cpp
+byte_stream::stream bs(byte_stream::endian::big); // empty, position 0
+bs = uint16_t{0x1234};                         // replace: 12 34
+bs.set(uint16_t{0x5678});                      // append: 12 34 56 78
+const auto first = bs.get<uint16_t>();         // 0x1234
+uint16_t second{};
+bs.get_to(second);                            // 0x5678
+bs.set_endian(byte_stream::endian::little);    // affects subsequent reads/writes
+```
+
+Default construction uses little endian. Object assignment preserves the current endian,
+replaces all bytes, resets the read position, and reuses capacity. It uses the same codec
+and default width as `set(obj)`. On failure, old data is discarded and a partial encoded
+prefix may remain. The input must not refer to the destination's buffer or its elements;
+custom serializers must only append bytes and must not change endian or read position.
+
+Copying or moving a stream transfers its complete state, including bytes, read position,
+and endian. It does not serialize an object. `set_endian()` changes neither existing bytes
+nor read position; reading mixed-endian fields requires explicit switching.
+See [DESIGN.md](DESIGN.md) for the full contract.
+
 ## Quick start
 
 ```cpp

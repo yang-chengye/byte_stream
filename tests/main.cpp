@@ -317,6 +317,135 @@ TEST(ByteStreamUtilsTest, RejectsInvalidEscapeSequences) {
         byte_stream::byte_stream_errc::invalid_size);
 }
 
+TEST(ByteStreamTest, ConstructsEmptyStreamWithExplicitEndian) {
+    using byte_stream::endian;
+    using byte_stream::stream;
+    static_assert(!std::is_convertible_v<endian, stream>);
+    static_assert(std::is_nothrow_constructible_v<stream, endian>);
+    EXPECT_EQ(stream{}.get_endian(), endian::little);
+    for (const auto order : { endian::little, endian::big }) {
+        stream bs(order);
+        EXPECT_TRUE(bs.empty());
+        EXPECT_EQ(bs.position(), 0u);
+        EXPECT_EQ(bs.get_endian(), order);
+    }
+}
+
+TEST(ByteStreamTest, ObjectAssignmentReplacesDataAndReusesCapacity) {
+    using byte_stream::endian;
+    for (const auto order : { endian::little, endian::big }) {
+        byte_stream::stream bs(order);
+        bs.reserve(64);
+        bs.set<uint32_t>(0xFFFFFFFF);
+        ASSERT_TRUE(bs.seek(2));
+        const auto capacity = bs.buffer().capacity();
+        EXPECT_EQ(&(bs = uint16_t{0x1234}), &bs);
+        const std::vector<uint8_t> expected = order == endian::big
+            ? std::vector<uint8_t>{0x12, 0x34} : std::vector<uint8_t>{0x34, 0x12};
+        EXPECT_EQ(bs.buffer(), expected);
+        EXPECT_EQ(bs.buffer().capacity(), capacity);
+        EXPECT_EQ(bs.position(), 0u);
+        EXPECT_EQ(bs.get_endian(), order);
+        EXPECT_EQ(bs.get<uint16_t>(), 0x1234);
+        bs.set<uint16_t>(0x5678);
+        EXPECT_EQ(bs.position(), 2u);
+        uint16_t decoded{};
+        bs.get_to(decoded);
+        EXPECT_EQ(decoded, 0x5678);
+        EXPECT_TRUE(bs.eof());
+    }
+}
+
+TEST(ByteStreamTest, ObjectAssignmentUsesCustomAndContainerCodecs) {
+    using byte_stream::endian;
+    byte_stream::stream bs(endian::big);
+    const sample::envelope value{0x1234, {7, 0xA1B2C3, sample::kind::alpha, {0x5678}}, {0xAB, 0xCD}};
+    bs = value;
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{
+        0x12, 0x34, 7, 0xA1, 0xB2, 0xC3, 0x12, 1, 0x56, 0x78, 0xAB, 0xCD}));
+    EXPECT_EQ(bs.get<sample::envelope>(), value);
+    const std::vector<uint8_t> bytes{1, 2, 3};
+    bs = bytes;
+    EXPECT_EQ(bs.buffer(), bytes);
+    bs = std::vector<uint8_t>{4, 5};
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{4, 5}));
+    EXPECT_EQ(bs.get_endian(), endian::big);
+    const uint16_t array[]{0x1234, 0x5678};
+    bs = array;
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{0x12, 0x34, 0x56, 0x78}));
+    bs = std::vector<uint8_t>{};
+    EXPECT_TRUE(bs.empty());
+    EXPECT_EQ(bs.position(), 0u);
+    EXPECT_EQ(bs.get_endian(), endian::big);
+}
+
+TEST(ByteStreamTest, ObjectAssignmentFailureLeavesEncodedPrefix) {
+    byte_stream::stream bs(byte_stream::endian::big);
+    bs.set<uint32_t>(0x12345678);
+    ASSERT_TRUE(bs.seek(2));
+    expect_byte_stream_error([&] { bs = codec_sample::failing_write{}; },
+        byte_stream::byte_stream_errc::invalid_value);
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{0xFF}));
+    EXPECT_EQ(bs.position(), 0u);
+    EXPECT_EQ(bs.get_endian(), byte_stream::endian::big);
+    bs = uint16_t{0x1234};
+    EXPECT_EQ(bs.get<uint16_t>(), 0x1234);
+}
+
+TEST(ByteStreamTest, EndianSwitchOnlyAffectsSubsequentOperations) {
+    using byte_stream::endian;
+    byte_stream::stream bs(endian::big);
+    bs.set<uint16_t>(0x1234);
+    EXPECT_EQ(bs.get<uint16_t>(), 0x1234);
+    const auto bytes = bs.buffer();
+    bs.set_endian(endian::little);
+    EXPECT_EQ(bs.buffer(), bytes);
+    EXPECT_EQ(bs.position(), 2u);
+    bs.set<uint16_t>(0x5678);
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{0x12, 0x34, 0x78, 0x56}));
+    EXPECT_EQ(bs.get<uint16_t>(), 0x5678);
+    bs.reset_position();
+    EXPECT_EQ(bs.get<uint16_t>(), 0x3412);
+}
+
+TEST(ByteStreamTest, StreamTransfersPreserveCompleteState) {
+    using byte_stream::endian;
+    using byte_stream::stream;
+    static_assert(std::is_nothrow_move_constructible_v<stream>);
+    static_assert(std::is_nothrow_move_assignable_v<stream>);
+    stream source(endian::big);
+    source.set<uint32_t>(0x12345678);
+    ASSERT_TRUE(source.seek(2));
+    const auto bytes = source.buffer();
+    const auto check = [&](const stream& bs) {
+        EXPECT_EQ(bs.buffer(), bytes);
+        EXPECT_EQ(bs.position(), 2u);
+        EXPECT_EQ(bs.get_endian(), endian::big);
+    };
+    stream copied(source);
+    check(copied);
+    stream assigned;
+    assigned = source;
+    check(assigned);
+    const stream& const_source = source;
+    assigned = const_source;
+    check(assigned);
+    stream moved(std::move(copied));
+    check(moved);
+    assigned = std::move(moved);
+    check(assigned);
+    check(source);
+    stream& alias = source;
+    source = alias;
+    check(source);
+    struct derived_stream : stream { using stream::stream; };
+    derived_stream derived(endian::big);
+    derived.set<uint32_t>(0x12345678);
+    ASSERT_TRUE(derived.seek(2));
+    assigned = derived;
+    check(assigned);
+}
+
 TEST(ByteStreamTest, WritesAndReadsLittleEndianIntegers) {
     byte_stream::stream stream;
     stream.set_endian(byte_stream::endian::little);

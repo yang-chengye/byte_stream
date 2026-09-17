@@ -582,6 +582,8 @@ void benchmark_variant_records() {
     print_rate("variant record read", record_count, read_seconds);
 }
 
+void benchmark_object_assignment();
+
 } // namespace bench
 
 int main() {
@@ -601,5 +603,6 @@ int main() {
     bench::benchmark_malformed_inputs();
     bench::benchmark_atomic_packet_reads();
     bench::benchmark_variant_records();
+    bench::benchmark_object_assignment();
     std::cout << "sink=" << bench::sink << '\n';
 }

@@ -11,7 +11,7 @@ target_compile_definitions(byte_stream_performance
     PRIVATE $<$<CONFIG:Debug>:BYTE_STREAM_BENCHMARK_DEBUG_BUILD>
 )
 
-add_executable(byte_stream_coverage_benchmark coverage.cpp)
+add_executable(byte_stream_coverage_benchmark coverage.cpp coverage_assignment.cpp)
 target_link_libraries(byte_stream_coverage_benchmark PRIVATE byte_stream::byte_stream)
 byte_stream_configure_development_target(byte_stream_coverage_benchmark)
 target_compile_definitions(byte_stream_coverage_benchmark
