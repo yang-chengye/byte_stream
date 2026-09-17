@@ -182,7 +182,11 @@ struct frame_id {
     uint32_t value{};
 };
 
-struct failing_write {};
+struct failing_write {
+    // Keep failure runtime-dependent: MSVC otherwise diagnoses the assignment
+    // operator's return as unreachable after inlining this test codec.
+    volatile bool fail{ true };
+};
 
 struct oversized_container {
     using value_type = uint8_t;
@@ -218,10 +222,12 @@ struct byte_stream_codec<codec_sample::frame_id> {
 
 template <>
 struct byte_stream_codec<codec_sample::failing_write> {
-    static void write(stream& stream, const codec_sample::failing_write&, uint32_t) {
+    static void write(stream& stream, const codec_sample::failing_write& value, uint32_t) {
         stream.set<uint8_t>(0xFF);
-        throw byte_stream_error(byte_stream_errc::invalid_value,
-            "byte_stream: deliberate codec failure");
+        if (value.fail) {
+            throw byte_stream_error(byte_stream_errc::invalid_value,
+                "byte_stream: deliberate codec failure");
+        }
     }
 };
 
@@ -388,6 +394,8 @@ TEST(ByteStreamTest, ObjectAssignmentFailureLeavesEncodedPrefix) {
     EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{0xFF}));
     EXPECT_EQ(bs.position(), 0u);
     EXPECT_EQ(bs.get_endian(), byte_stream::endian::big);
+    EXPECT_EQ(&(bs = codec_sample::failing_write{ false }), &bs);
+    EXPECT_EQ(bs.buffer(), (std::vector<uint8_t>{0xFF}));
     bs = uint16_t{0x1234};
     EXPECT_EQ(bs.get<uint16_t>(), 0x1234);
 }

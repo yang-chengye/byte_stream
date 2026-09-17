@@ -6,7 +6,7 @@
  *  |____/ \__, |\__\___|____/ \__|_|  \___|\__,_|_| |_| |_|
  *         |___/                                            
  * https://github.com/yang-chengye/byte_stream
- * Version: 0.1.3
+ * Version: 0.1.4
  * License: MIT
  */
 
